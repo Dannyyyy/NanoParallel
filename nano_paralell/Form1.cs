@@ -14,9 +14,23 @@ namespace nano_paralell
 {
     public partial class Form1 : Form
     {
+        //
+        Dictionary<int, List<int>> populations = new Dictionary<int, List<int>>();
+        int key = 0;
+        Stack<int> usesOrganizm = new Stack<int>();
+        //
+        int Q = 5;
+        int Z = 40;
+        double Pm = 0.9; //вероятность мутации
+        double Pvm =  0.95; //вероятность того, что останется более приспособленный
+        double Pv = 0.05; //вероятность того, что погибнет менее приспособленный
+        //
         private object threadLock = new object();
 
-        const int countThread = 3;
+        const int countThread = 4;
+        int startVertex = 0;
+        int endVertex = 0;
+        Random rand = new Random();
 
         Dictionary<int,Vertex> moduls = new Dictionary<int, Vertex>();
 
@@ -77,8 +91,13 @@ namespace nano_paralell
                         flag = true;
                     }
                 }
-                flags[modul.Number] = 1;
-                all[num] += modul.WorkTime;
+                lock (threadLock)
+                {
+                    flags[modul.Number] = 1;
+                    all[num] += modul.WorkTime;
+                
+                    textBox2.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is end" + Environment.NewLine);
+                }
             }
         }
 
@@ -170,6 +189,8 @@ namespace nano_paralell
             {
                 threads[i].Start(i);
             }
+
+            
         }
 
         // формирование гена по потокам
@@ -199,6 +220,361 @@ namespace nano_paralell
             }
         }
 
+        // Создание популяции по regulateList
+        public void createPopulation()
+        {
+            populations.Add(key, regulateList);
+            key++;
+            for (int i = 1; i < Z; i++)
+            {
+                List<int> newRegulateList = new List<int>(regulateList);
+                foreach (var modul in moduls)
+                {
+                    if (modul.Value.LeavingVertex.Count > 1 && !modul.Value.LeavingVertex.Contains(endVertex))
+                    {
+                        
+                        if (rand.Next() % 2 == 0)
+                        {
+                            int firstNum;
+                            int secondNum;
+                            do
+                            {
+                                firstNum = modul.Value.LeavingVertex[rand.Next(0, modul.Value.LeavingVertex.Count)];
+                                secondNum = modul.Value.LeavingVertex[rand.Next(0, modul.Value.LeavingVertex.Count)];
+                            } while (firstNum == secondNum);
+                            int firstSearch = 0, secondSearch = 0;
+                            for (int k = 0; k < newRegulateList.Count; k++)
+                            {
+                                if (newRegulateList[k] == firstNum)
+                                {
+                                    firstSearch = k;
+                                }
+                                if (newRegulateList[k] == secondNum)
+                                {
+                                    secondSearch = k;
+                                }
+                            }
+                            newRegulateList[firstSearch] = secondNum;
+                            newRegulateList[secondSearch] = firstNum;
+                        }
+                    }
+                }
+                populations.Add(key, newRegulateList);
+                key++;
+            }
+        }
+
+        //Выбор организма
+        public int choiseOrganizm(int num)
+        {
+            int i = 0;
+            foreach (KeyValuePair<int, List<int>> currentPopulation in populations)
+            {
+                if (i == num)
+                {
+                    if (usesOrganizm.Contains(currentPopulation.Key))
+                    {
+                        return -1;
+                    }
+                    else
+                    {
+                        usesOrganizm.Push(currentPopulation.Key);
+                        return currentPopulation.Key;
+                    }
+                }
+                i++;
+            }
+            return -1;
+        }
+
+        public void crossing(int first, int second)
+        {
+            List<int> firstParent = new List<int>(populations[first]);
+            List<int> secondParent = new List<int>(populations[second]);
+            List<int> firstChildren = new List<int>(createMutation(populations[first]));
+            List<int> secondChildren = new List<int>(createMutation(populations[second]));
+            populations.Add(key, firstChildren);
+            key++;
+            populations.Add(key, secondChildren);
+            key++;
+        }
+
+        // Воспроизводство
+        public void reproduction()
+        {
+            usesOrganizm.Clear();
+            
+            for (int i = 0; i < Q; i++)
+            {
+                int firstNum = 0;
+                int flag = -1;
+                do
+                {
+                    firstNum = Math.Abs(rand.Next() % Z);
+                    flag = choiseOrganizm(firstNum);
+                } while (flag == -1);
+                firstNum = flag;
+                int secondNum = 0;
+                flag = -1;
+                do
+                {
+                    secondNum = Math.Abs(rand.Next() % Z);
+                    flag = choiseOrganizm(secondNum);
+                } while (flag == -1);
+                secondNum = flag;
+                crossing(firstNum, secondNum); 
+            }
+        }
+
+        public List<int> createMutation(List<int> main)
+        {
+            List<int> newRegulateList = new List<int>(main);
+            foreach (var modul in moduls)
+            {
+                if (modul.Value.LeavingVertex.Count > 1 && !modul.Value.LeavingVertex.Contains(endVertex))
+                {
+                    if (rand.Next() % 2 == 0)
+                    {
+                        int firstNum;
+                        int secondNum;
+                        do
+                        {
+                            firstNum = modul.Value.LeavingVertex[rand.Next(0, modul.Value.LeavingVertex.Count)];
+                            secondNum = modul.Value.LeavingVertex[rand.Next(0, modul.Value.LeavingVertex.Count)];
+                        } while (firstNum == secondNum);
+                        int firstSearch = 0, secondSearch = 0;
+                        for (int k = 0; k < newRegulateList.Count; k++)
+                        {
+                            if (newRegulateList[k] == firstNum)
+                            {
+                                firstSearch = k;
+                            }
+                            if (newRegulateList[k] == secondNum)
+                            {
+                                secondSearch = k;
+                            }
+                        }
+                        newRegulateList[firstSearch] = secondNum;
+                        newRegulateList[secondSearch] = firstNum;
+                    }
+                }
+            }
+            return newRegulateList;
+        }
+
+        public int organizmResult(List<int> organizm)
+        {
+            Dictionary<int, Vertex> currentModuls = new Dictionary<int, Vertex>(moduls);
+            //
+            int count = 0;
+            if (organizm.Count % countThread == 0)
+            {
+                count = organizm.Count / countThread;
+            }
+            else
+            {
+                count = organizm.Count / countThread + 1;
+            }
+            for (int i = 0; i < countThread; i++)
+            {
+                for (int j = 0; j < count; j++)
+                {
+                    if (i + j * countThread < organizm.Count)
+                    {
+                        currentModuls[organizm[i + j * countThread]].NumThread = i;
+                    }
+                }
+            }
+            //
+            List<List<int>> steps = new List<List<int>>();
+            List<List<int>> stepsTime = new List<List<int>>();
+            for (int i = 0; i < countModuls; i++)
+            {
+                steps.Add(new List<int>());
+                stepsTime.Add(new List<int>());
+            }
+            Stack<int> existVertex = new Stack<int>();
+            for (int i = 0; i < currentModuls.Count; i++)
+            {
+                bool[] threadBusy = new bool[countThread];
+                for (int j = 0; j < countThread; j++)
+                {
+                    threadBusy[j] = false;
+                }
+                foreach (KeyValuePair<int, Vertex> modul in currentModuls)
+                {
+                    if (!existVertex.Contains(modul.Value.Number))
+                    {
+                        if (modul.Value.InboxVertex.Count == 0)
+                        {
+                            if (!threadBusy[modul.Value.NumThread])
+                            {
+                                steps[i].Add(modul.Value.Number);
+                                stepsTime[i].Add(modul.Value.WorkTime);
+                                threadBusy[modul.Value.NumThread] = true;
+                            }
+                        }
+                        else
+                        {
+                            if (!threadBusy[modul.Value.NumThread])
+                            {
+                                int ready = 1;
+                                foreach (var inboxVertex in modul.Value.InboxVertex)
+                                {
+                                    if (existVertex.Contains(inboxVertex))
+                                    {
+                                        ready *= 1;
+                                    }
+                                    else
+                                    {
+                                        ready *= 0;
+                                    }
+                                }
+                                if (ready == 1)
+                                {
+                                    steps[i].Add(modul.Value.Number);
+                                    stepsTime[i].Add(modul.Value.WorkTime);
+                                    threadBusy[modul.Value.NumThread] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                foreach (var num in steps[i])
+                {
+                    existVertex.Push(num);
+                }
+            }
+            int time = 0;
+            foreach (var list in stepsTime)
+            {
+                if (list.Count != 0)
+                {
+                    time += list.Max();
+                }
+            }
+            return time;
+        }
+
+        //Мутация
+        public void mutation()
+        {
+            Stack<int> death = new Stack<int>();
+            Stack<List<int>> live = new Stack<List<int>>();
+
+            int i = 0;
+            foreach (KeyValuePair<int, List<int>> currentPopulation in populations)
+            {
+                if (i == Z)
+                    break;
+                //i не увеличивается
+                if ((Convert.ToDouble(rand.Next(100)) / 100) <= Pm)
+                {
+                    List<int> mutant = new List<int>(createMutation(currentPopulation.Value));
+                    int parentResult = organizmResult(currentPopulation.Value);
+                    double mutantResult = organizmResult(mutant);
+
+                    if (parentResult >= mutantResult)
+                    {
+                        if ((Convert.ToDouble(rand.Next(100)) / 100) > Pvm)
+                        {
+                            death.Push(currentPopulation.Key);
+                            live.Push(mutant);
+                        }
+                    }
+                    else
+                    {
+                        if ((Convert.ToDouble(rand.Next(100)) / 100) <= Pvm)
+                        {
+                            death.Push(currentPopulation.Key);
+                            live.Push(mutant);
+                        }
+                    }
+                }
+            }
+            foreach (int j in death)
+            {
+                populations.Remove(j);
+            }
+            foreach (var mutant in live)
+            {
+                populations.Add(key, mutant);
+                key++;
+            }
+            live.Clear();
+            death.Clear();
+        }
+
+        //Борьба
+        public void fight()
+        {
+            Stack<int> death = new Stack<int>();
+
+            usesOrganizm.Clear();
+
+            for (int i = 0; i < 2 * Q; i++)
+            {
+                int firstNum = 0;
+                int flag = -1;
+                do
+                {
+                    firstNum = Math.Abs(rand.Next() % (Z + 2 * Q));
+                    flag = choiseOrganizm(firstNum);
+                } while (flag == -1);
+                firstNum = flag;
+                int secondNum = 0;
+                flag = -1;
+                do
+                {
+                    secondNum = Math.Abs(rand.Next() % (Z + 2 * Q));
+                    flag = choiseOrganizm(secondNum);
+                } while (flag == -1);
+                secondNum = flag;
+                double resultFirstOrganizm = organizmResult(populations[firstNum]);
+                double resultSecondOrganizm = organizmResult(populations[secondNum]);
+
+                if (resultFirstOrganizm >= resultSecondOrganizm)
+                {
+                    if ((Convert.ToDouble(rand.Next(100)) / 100) <= Pv)
+                    {
+                        death.Push(secondNum);
+                    }
+                    else
+                    {
+                        death.Push(firstNum);
+                    }
+                }
+                else
+                {
+                    if ((Convert.ToDouble(rand.Next(100)) / 100) <= Pvm)
+                    {
+                        death.Push(firstNum);
+                    }
+                    else
+                    {
+                        death.Push(secondNum);
+                    }
+                }
+            }
+            foreach (int j in death)
+            {
+                populations.Remove(j);
+            }
+            death.Clear();
+        }
+
+        public void writePopulation()
+        {
+            foreach (KeyValuePair<int, List<int>> currentPopulation in populations)
+            {
+                foreach (var elem in currentPopulation.Value)
+                {
+                    textBox2.AppendText(elem.ToString() + " ");
+                }
+                textBox2.AppendText(Environment.NewLine);
+            }
+        }
+
         // запись в список в зависимости от времени окончания(min -> max)
         public void regulateEndTime()
         {
@@ -219,6 +595,7 @@ namespace nano_paralell
                 existVertex.Push(minNumber);
             }
         }
+
         // Вывод списка по возрастаниб времени убывания
         public void writeRegulateList()
         {
@@ -337,6 +714,8 @@ namespace nano_paralell
             {
                 string startEnd = strRead.ReadLine();
                 string[] positionStartEnd = startEnd.Split(' ');
+                startVertex = Convert.ToInt32(positionStartEnd[0]);
+                endVertex = Convert.ToInt32(positionStartEnd[1]);
                 setStartEndModul(Convert.ToInt32(positionStartEnd[0]), Convert.ToInt32(positionStartEnd[1]));
                 while (!strRead.EndOfStream)
                 {
@@ -349,16 +728,73 @@ namespace nano_paralell
                         moduls[number].LeavingVertex.Add(vertexNumber);
                     }
                 }
+                // поиск зависимостей для модуля
                 findInboxVertex();
+                // подсчет времени, через которое модуль отработает
                 countTimeVertex();
+                // вывод результатов
                 writeModuls();
+                // расположение модулей в зависимости от времени окончания
                 regulateEndTime();
+                // вывод
                 writeRegulateList();
+                // расположение модулей в потоки
                 recordVertex();
-                runTasks();
-                MessageBox.Show("  ");
+                //runTasks();
                 checkAllTime();
-                MessageBox.Show("  ");
+                createPopulation();
+                //writePopulation();
+                textBox2.AppendText("-------" + Environment.NewLine);
+                for (int h = 0; h < 5; h++)
+                {
+                    reproduction();
+                    writePopulation();
+                    textBox2.AppendText("-------repr" + Environment.NewLine);
+                    mutation();
+                    writePopulation();
+                    textBox2.AppendText("-------mut" + Environment.NewLine);
+                    fight();
+                    writePopulation();
+                    textBox2.AppendText("-------fight" + Environment.NewLine);
+                }
+                MessageBox.Show("All");
+                int min = int.MaxValue;
+                int num = 0;
+                foreach (KeyValuePair<int, List<int>> currentPopulation in populations)
+                {
+                    int res = organizmResult(currentPopulation.Value);
+                    
+                    if (min > res)
+                    {
+                        min = res;
+                        num = currentPopulation.Key;
+                    }
+                    //MessageBox.Show(res.ToString());
+                }
+                MessageBox.Show(min.ToString());
+                //
+                int count = 0;
+                if (populations[num].Count % countThread == 0)
+                {
+                    count = populations[num].Count / countThread;
+                }
+                else
+                {
+                    count = populations[num].Count / countThread + 1;
+                }
+                for (int i = 0; i < countThread; i++)
+                {
+                    for (int j = 0; j < count; j++)
+                    {
+                        if (i + j * countThread < regulateList.Count)
+                        {
+                            textBox1.AppendText(populations[num][i + j * countThread].ToString() + Environment.NewLine);
+                        }
+                    }
+                    textBox1.AppendText("-----Thread " + (i + 1).ToString() + Environment.NewLine);
+                }
+                //
+
             }
             finally
             {
