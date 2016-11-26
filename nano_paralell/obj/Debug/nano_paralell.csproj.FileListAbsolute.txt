@@ -10,3 +10,9 @@ c:\users\danil\documents\visual studio 2015\Projects\nano_paralell\nano_paralell
 C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\bin\Debug\nano_paralell.exe.config
 C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\obj\Debug\nano_paralell.exe
 C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\obj\Debug\nano_paralell.pdb
+C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\bin\Debug\nano_paralell.exe
+C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\bin\Debug\nano_paralell.pdb
+C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\obj\Debug\nano_paralell.csprojResolveAssemblyReference.cache
+C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\obj\Debug\nano_paralell.Form1.resources
+C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\obj\Debug\nano_paralell.Properties.Resources.resources
+C:\Users\Danil\Source\Repos\NanoParallel\nano_paralell\obj\Debug\nano_paralell.csproj.GenerateResource.Cache

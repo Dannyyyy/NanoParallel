@@ -6,6 +6,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -13,19 +14,165 @@ namespace nano_paralell
 {
     public partial class Form1 : Form
     {
+        private object threadLock = new object();
+
         const int countThread = 3;
 
         Dictionary<int,Vertex> moduls = new Dictionary<int, Vertex>();
 
         List<int> regulateList = new List<int>();
 
-       
+        //
+        List<List<Vertex>> tasks = new List<List<Vertex>>();
+        const int countModuls = 80;
+        int[] flags = new int[countModuls];
+        int[] all = new int[countThread];
+        int[] currentTime = new int[countModuls];
+        //
 
         public Form1()
         { 
             InitializeComponent();
+            for (int i = 0; i < countThread; i++)
+            {
+                tasks.Add(new List<Vertex>());
+            }
+            for (int i = 0; i < countModuls; i++)
+            {
+                flags[i] = 0;
+                currentTime[i] = 0;
+            }
+            for (int i = 0; i < countThread; i++)
+            {
+                all[i] = 0;
+            }
         }
 
+        // функция, выполянющаяся в потоке
+        public void threadFunc(object number)
+        {
+            int num = Convert.ToInt32(number);
+            List<Vertex> threadTasks = new List<Vertex>();
+            threadTasks.AddRange(tasks[num]);
+            foreach (var modul in tasks[num])
+            {
+                bool flag = true;
+                if (modul.InboxVertex.Count == 0)
+                {
+                    flag = false;
+                }
+                while (flag)
+                {
+                    int ready = 1;
+                    foreach (var inboxVertex in modul.InboxVertex)
+                    {
+                        ready *= flags[inboxVertex];
+                    }
+                    if (ready == 1)
+                    {
+                        flag = false;
+                    }
+                    else
+                    {
+                        flag = true;
+                    }
+                }
+                flags[modul.Number] = 1;
+                all[num] += modul.WorkTime;
+            }
+        }
+
+        // подсчет времени выполнения всех модулей
+        public void checkAllTime()
+        {
+            List<List<int>> steps = new List<List<int>>();
+            List<List<int>> stepsTime = new List<List<int>>();
+            for (int i=0;i<countModuls;i++)
+            {
+                steps.Add(new List<int>());
+                stepsTime.Add(new List<int>());
+            }
+            Stack<int> existVertex = new Stack<int>();
+            for (int i = 0; i < moduls.Count; i++)
+            {
+                bool[] threadBusy = new bool[countThread];
+                for (int j = 0; j < countThread; j++)
+                {
+                    threadBusy[j] = false;
+                }
+                foreach (KeyValuePair<int, Vertex> modul in moduls)
+                {
+                    if (!existVertex.Contains(modul.Value.Number))
+                    {
+                        if (modul.Value.InboxVertex.Count == 0)
+                        {
+                            if (!threadBusy[modul.Value.NumThread])
+                            {
+                                steps[i].Add(modul.Value.Number);
+                                stepsTime[i].Add(modul.Value.WorkTime);
+                                threadBusy[modul.Value.NumThread] = true;
+                            }
+                        }
+                        else
+                        {
+                            if (!threadBusy[modul.Value.NumThread])
+                            {
+                                int ready = 1;
+                                foreach (var inboxVertex in modul.Value.InboxVertex)
+                                {
+                                    if (existVertex.Contains(inboxVertex))
+                                    {
+                                        ready *= 1;
+                                    }
+                                    else
+                                    {
+                                        ready *= 0;
+                                    }
+                                }
+                                if (ready == 1)
+                                {
+                                    steps[i].Add(modul.Value.Number);
+                                    stepsTime[i].Add(modul.Value.WorkTime);
+                                    threadBusy[modul.Value.NumThread] = true;
+                                }
+                            }
+                        }
+                    }
+                }
+                foreach (var num in steps[i])
+                {
+                    existVertex.Push(num);
+                }
+            }
+            int time = 0;
+            foreach(var list in stepsTime)
+            {
+                if (list.Count != 0)
+                {
+                    time += list.Max();
+                }
+            }
+            MessageBox.Show(time.ToString());
+        }
+
+        // запуск потоков
+        public void runTasks()
+        {
+            List<Thread> threads = new List<Thread>();
+            for (int i = 0; i < countThread; i++)
+            {
+                Thread thread = new Thread(this.threadFunc);
+                thread.Priority = ThreadPriority.Normal;
+                threads.Add(thread);
+            }
+
+            for (int i = 0; i < countThread; i++)
+            {
+                threads[i].Start(i);
+            }
+        }
+
+        // формирование гена по потокам
         public void recordVertex()
         {
             int count = 0;
@@ -44,12 +191,15 @@ namespace nano_paralell
                     if (i + j*countThread < regulateList.Count)
                     {
                         textBox1.AppendText(regulateList[i + j*countThread].ToString() + Environment.NewLine);
+                        tasks[i].Add(moduls[regulateList[i + j * countThread]]);
+                        moduls[regulateList[i + j * countThread]].NumThread = i;
                     }
                 }
                 textBox1.AppendText("-----Thread " + (i+1).ToString() + Environment.NewLine);
             }
         }
 
+        // запись в список в зависимости от времени окончания(min -> max)
         public void regulateEndTime()
         {
             Stack<int> existVertex = new Stack<int>();
@@ -69,7 +219,7 @@ namespace nano_paralell
                 existVertex.Push(minNumber);
             }
         }
-
+        // Вывод списка по возрастаниб времени убывания
         public void writeRegulateList()
         {
             foreach (var elem in regulateList)
@@ -86,6 +236,7 @@ namespace nano_paralell
             moduls[endNumber].IsEnd = true;
         }
 
+        // Просчет времени окончания
         public void countTimeVertex()
         {
             foreach (KeyValuePair<int, Vertex> modul in moduls)
@@ -109,6 +260,7 @@ namespace nano_paralell
             }
         }
 
+        // Вывод модулей
         public void writeModuls()
         {
             foreach (KeyValuePair<int, Vertex> modul in moduls)
@@ -130,6 +282,7 @@ namespace nano_paralell
             }
         }
 
+        // Поиск входящих модулей для каждого модуля
         public void findInboxVertex()
         {
             foreach (KeyValuePair<int, Vertex> modul in moduls)
@@ -202,6 +355,10 @@ namespace nano_paralell
                 regulateEndTime();
                 writeRegulateList();
                 recordVertex();
+                runTasks();
+                MessageBox.Show("  ");
+                checkAllTime();
+                MessageBox.Show("  ");
             }
             finally
             {

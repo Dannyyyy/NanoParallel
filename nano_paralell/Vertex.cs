@@ -16,6 +16,7 @@ namespace nano_paralell
         int endTime;
         List<int> inboxVertex;
         List<int> leavingVertex;
+        int numThread;
 
         public Vertex()
         {
@@ -58,6 +59,12 @@ namespace nano_paralell
         {
             set { endTime = value; }
             get { return endTime; }
+        }
+
+        public int NumThread
+        {
+            set { numThread = value; }
+            get { return numThread; }
         }
 
         public List<int> InboxVertex
