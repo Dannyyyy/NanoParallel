@@ -27,7 +27,9 @@ namespace nano_paralell
         //
         private object threadLock = new object();
 
-        const int countThread = 4;
+        List<List<Vertex>> modulsInThread = new List<List<Vertex>>();
+
+        const int countThread = 5;
         int startVertex = 0;
         int endVertex = 0;
         Random rand = new Random();
@@ -50,6 +52,7 @@ namespace nano_paralell
             for (int i = 0; i < countThread; i++)
             {
                 tasks.Add(new List<Vertex>());
+                modulsInThread.Add(new List<Vertex>());
             }
             for (int i = 0; i < countModuls; i++)
             {
@@ -89,14 +92,124 @@ namespace nano_paralell
                     else
                     {
                         flag = true;
+                        lock (threadLock)
+                        {
+                            switch (num)
+                            {
+                                case 0:  textBox3.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
+                                    break;
+                                case 1:
+                                    textBox4.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
+                                    break;
+                                case 2:
+                                    textBox5.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
+                                    break;
+                                case 3:
+                                    textBox6.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
+                                    break;
+                            }
+                            //textBox2.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
+                        }
                     }
                 }
                 lock (threadLock)
                 {
                     flags[modul.Number] = 1;
                     all[num] += modul.WorkTime;
-                
-                    textBox2.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is end" + Environment.NewLine);
+
+                    switch (num)
+                    {
+                        case 0:
+                            textBox3.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is end" + Environment.NewLine);
+                            break;
+                        case 1:
+                            textBox4.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is end" + Environment.NewLine);
+                            break;
+                        case 2:
+                            textBox5.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is end" + Environment.NewLine);
+                            break;
+                        case 3:
+                            textBox6.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is end" + Environment.NewLine);
+                            break;
+                    }
+                }
+            }
+        }
+
+        public void checkCompleteTime()
+        {
+            List<List<int>> steps = new List<List<int>>();
+            List<List<int>> stepsTime = new List<List<int>>();
+            for (int i = 0; i < countModuls; i++)
+            {
+                steps.Add(new List<int>());
+                stepsTime.Add(new List<int>());
+            }
+            Stack<int> existVertex = new Stack<int>();
+            for (int i = 0; i < countModuls; i++)
+            {
+                for (int j = 0; j < countThread; j++)
+                {
+                    foreach (var elem in modulsInThread[j])
+                    {
+
+                        if(!existVertex.Contains(elem.Number))
+                        {
+
+                            if (elem.InboxVertex.Count == 0)
+                            {
+                                steps[i].Add(elem.Number);
+                                stepsTime[i].Add(elem.WorkTime);
+                                break;
+                            }
+                            int ready = 1;
+                            foreach (var inboxVertex in elem.InboxVertex)
+                            {
+                                if (!existVertex.Contains(inboxVertex))
+                                {
+                                    ready *= 0;
+                                }
+                                else
+                                {
+                                    ready *= 1;
+                                }
+                            }
+                            if (ready == 1)
+                            {
+                                steps[i].Add(elem.Number);
+                                stepsTime[i].Add(elem.WorkTime);
+                                break;
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                    }
+                }
+                foreach (var num in steps[i])
+                {
+                    existVertex.Push(num);
+                }
+            }
+            int time = 0;
+            foreach (var list in stepsTime)
+            {
+                if (list.Count != 0)
+                {
+                    time += list.Max();
+                }
+            }
+            MessageBox.Show(time.ToString());
+            foreach (var list in steps)
+            {
+                if (list.Count != 0)
+                {
+                    foreach (var elem in list)
+                    {
+                        textBox1.AppendText(elem.ToString() + " ");
+                    }
+                    textBox1.AppendText(Environment.NewLine);
                 }
             }
         }
@@ -172,6 +285,17 @@ namespace nano_paralell
                 }
             }
             MessageBox.Show(time.ToString());
+            foreach(var list in steps)
+            {
+                if (list.Count != 0)
+                {
+                    foreach (var elem in list)
+                    {
+                        textBox2.AppendText(elem.ToString() + " ");
+                    }
+                    textBox2.AppendText(Environment.NewLine);
+                }
+            }
         }
 
         // запуск потоков
@@ -203,7 +327,7 @@ namespace nano_paralell
             }
             else
             {
-                count = regulateList.Count / countThread + 1;
+                count = regulateList.Count / countThread+1;
             }
             for (int i = 0; i < countThread; i++)
             {
@@ -214,8 +338,25 @@ namespace nano_paralell
                         textBox1.AppendText(regulateList[i + j*countThread].ToString() + Environment.NewLine);
                         tasks[i].Add(moduls[regulateList[i + j * countThread]]);
                         moduls[regulateList[i + j * countThread]].NumThread = i;
+                        modulsInThread[i].Add(moduls[regulateList[i + j * countThread]]);
+                        switch (i)
+                        {
+                            case 0:
+                                textBox7.AppendText("Modul " + moduls[regulateList[i + j * countThread]].Number.ToString() + Environment.NewLine);
+                                break;
+                            case 1:
+                                textBox8.AppendText("Modul " + moduls[regulateList[i + j * countThread]].Number.ToString() + Environment.NewLine);
+                                break;
+                            case 2:
+                                textBox9.AppendText("Modul " + moduls[regulateList[i + j * countThread]].Number.ToString() + Environment.NewLine);
+                                break;
+                            case 3:
+                                textBox10.AppendText("Modul " + moduls[regulateList[i + j * countThread]].Number.ToString() + Environment.NewLine);
+                                break;
+                        }
                     }
                 }
+                
                 textBox1.AppendText("-----Thread " + (i+1).ToString() + Environment.NewLine);
             }
         }
@@ -740,60 +881,61 @@ namespace nano_paralell
                 writeRegulateList();
                 // расположение модулей в потоки
                 recordVertex();
-                //runTasks();
-                checkAllTime();
-                createPopulation();
-                //writePopulation();
-                textBox2.AppendText("-------" + Environment.NewLine);
-                for (int h = 0; h < 5; h++)
-                {
-                    reproduction();
-                    writePopulation();
-                    textBox2.AppendText("-------repr" + Environment.NewLine);
-                    mutation();
-                    writePopulation();
-                    textBox2.AppendText("-------mut" + Environment.NewLine);
-                    fight();
-                    writePopulation();
-                    textBox2.AppendText("-------fight" + Environment.NewLine);
-                }
-                MessageBox.Show("All");
-                int min = int.MaxValue;
-                int num = 0;
-                foreach (KeyValuePair<int, List<int>> currentPopulation in populations)
-                {
-                    int res = organizmResult(currentPopulation.Value);
-                    
-                    if (min > res)
-                    {
-                        min = res;
-                        num = currentPopulation.Key;
-                    }
-                    //MessageBox.Show(res.ToString());
-                }
-                MessageBox.Show(min.ToString());
-                //
-                int count = 0;
-                if (populations[num].Count % countThread == 0)
-                {
-                    count = populations[num].Count / countThread;
-                }
-                else
-                {
-                    count = populations[num].Count / countThread + 1;
-                }
-                for (int i = 0; i < countThread; i++)
-                {
-                    for (int j = 0; j < count; j++)
-                    {
-                        if (i + j * countThread < regulateList.Count)
-                        {
-                            textBox1.AppendText(populations[num][i + j * countThread].ToString() + Environment.NewLine);
-                        }
-                    }
-                    textBox1.AppendText("-----Thread " + (i + 1).ToString() + Environment.NewLine);
-                }
-                //
+                runTasks();
+                checkCompleteTime();
+                //checkAllTime();
+                //createPopulation();
+                ////writePopulation();
+                //textBox2.AppendText("-------" + Environment.NewLine);
+                //for (int h = 0; h < 5; h++)
+                //{
+                //    reproduction();
+                //    //writePopulation();
+                //    textBox2.AppendText("-------repr" + Environment.NewLine);
+                //    mutation();
+                //    //writePopulation();
+                //    textBox2.AppendText("-------mut" + Environment.NewLine);
+                //    fight();
+                //    //writePopulation();
+                //    textBox2.AppendText("-------fight" + Environment.NewLine);
+                //}
+                //MessageBox.Show("All");
+                //int min = int.MaxValue;
+                //int num = 0;
+                //foreach (KeyValuePair<int, List<int>> currentPopulation in populations)
+                //{
+                //    int res = organizmResult(currentPopulation.Value);
+
+                //    if (min > res)
+                //    {
+                //        min = res;
+                //        num = currentPopulation.Key;
+                //    }
+                //    //MessageBox.Show(res.ToString());
+                //}
+                //MessageBox.Show(min.ToString());
+                ////
+                //int count = 0;
+                //if (populations[num].Count % countThread == 0)
+                //{
+                //    count = populations[num].Count / countThread;
+                //}
+                //else
+                //{
+                //    count = populations[num].Count / countThread + 1;
+                //}
+                //for (int i = 0; i < countThread; i++)
+                //{
+                //    for (int j = 0; j < count; j++)
+                //    {
+                //        if (i + j * countThread < regulateList.Count)
+                //        {
+                //            textBox1.AppendText(populations[num][i + j * countThread].ToString() + Environment.NewLine);
+                //        }
+                //    }
+                //    textBox1.AppendText("-----Thread " + (i + 1).ToString() + Environment.NewLine);
+                //}
+                ////
 
             }
             finally
