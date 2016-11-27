@@ -29,7 +29,7 @@ namespace nano_paralell
 
         List<List<Vertex>> modulsInThread = new List<List<Vertex>>();
 
-        const int countThread = 5;
+        const int countThread = 4;
         int startVertex = 0;
         int endVertex = 0;
         Random rand = new Random();
@@ -106,6 +106,9 @@ namespace nano_paralell
                                     break;
                                 case 3:
                                     textBox6.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
+                                    break;
+                                default:
+                                    textBox11.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
                                     break;
                             }
                             //textBox2.AppendText("Modul " + modul.Number.ToString() + "(thread " + num.ToString() + ") is wait" + Environment.NewLine);
@@ -200,7 +203,14 @@ namespace nano_paralell
                     time += list.Max();
                 }
             }
-            MessageBox.Show(time.ToString());
+            int allTime = 0;
+            foreach (var modul in moduls)
+            {
+                allTime += modul.Value.WorkTime;
+            }
+            MessageBox.Show("Последовательное время выполнения: " + allTime.ToString());
+            MessageBox.Show("Параллельное время выполнения: " + time.ToString());
+            textBox1.AppendText("Параллельый запуск:" + Environment.NewLine);
             foreach (var list in steps)
             {
                 if (list.Count != 0)
@@ -312,9 +322,7 @@ namespace nano_paralell
             for (int i = 0; i < countThread; i++)
             {
                 threads[i].Start(i);
-            }
-
-            
+            } 
         }
 
         // формирование гена по потокам
@@ -335,7 +343,6 @@ namespace nano_paralell
                 {
                     if (i + j*countThread < regulateList.Count)
                     {
-                        textBox1.AppendText(regulateList[i + j*countThread].ToString() + Environment.NewLine);
                         tasks[i].Add(moduls[regulateList[i + j * countThread]]);
                         moduls[regulateList[i + j * countThread]].NumThread = i;
                         modulsInThread[i].Add(moduls[regulateList[i + j * countThread]]);
@@ -353,11 +360,13 @@ namespace nano_paralell
                             case 3:
                                 textBox10.AppendText("Modul " + moduls[regulateList[i + j * countThread]].Number.ToString() + Environment.NewLine);
                                 break;
+                            default:
+                                textBox12.AppendText("Modul " + moduls[regulateList[i + j * countThread]].Number.ToString() + Environment.NewLine);
+                                break;
                         }
                     }
-                }
-                
-                textBox1.AppendText("-----Thread " + (i+1).ToString() + Environment.NewLine);
+                }               
+                //textBox1.AppendText("-----Thread " + (i+1).ToString() + Environment.NewLine);
             }
         }
 
@@ -877,73 +886,38 @@ namespace nano_paralell
                 writeModuls();
                 // расположение модулей в зависимости от времени окончания
                 regulateEndTime();
-                // вывод
-                writeRegulateList();
-                // расположение модулей в потоки
-                recordVertex();
-                runTasks();
-                checkCompleteTime();
-                //checkAllTime();
-                //createPopulation();
-                ////writePopulation();
-                //textBox2.AppendText("-------" + Environment.NewLine);
-                //for (int h = 0; h < 5; h++)
-                //{
-                //    reproduction();
-                //    //writePopulation();
-                //    textBox2.AppendText("-------repr" + Environment.NewLine);
-                //    mutation();
-                //    //writePopulation();
-                //    textBox2.AppendText("-------mut" + Environment.NewLine);
-                //    fight();
-                //    //writePopulation();
-                //    textBox2.AppendText("-------fight" + Environment.NewLine);
-                //}
-                //MessageBox.Show("All");
-                //int min = int.MaxValue;
-                //int num = 0;
-                //foreach (KeyValuePair<int, List<int>> currentPopulation in populations)
-                //{
-                //    int res = organizmResult(currentPopulation.Value);
-
-                //    if (min > res)
-                //    {
-                //        min = res;
-                //        num = currentPopulation.Key;
-                //    }
-                //    //MessageBox.Show(res.ToString());
-                //}
-                //MessageBox.Show(min.ToString());
-                ////
-                //int count = 0;
-                //if (populations[num].Count % countThread == 0)
-                //{
-                //    count = populations[num].Count / countThread;
-                //}
-                //else
-                //{
-                //    count = populations[num].Count / countThread + 1;
-                //}
-                //for (int i = 0; i < countThread; i++)
-                //{
-                //    for (int j = 0; j < count; j++)
-                //    {
-                //        if (i + j * countThread < regulateList.Count)
-                //        {
-                //            textBox1.AppendText(populations[num][i + j * countThread].ToString() + Environment.NewLine);
-                //        }
-                //    }
-                //    textBox1.AppendText("-----Thread " + (i + 1).ToString() + Environment.NewLine);
-                //}
-                ////
-
             }
             finally
             {
                 strRead.Close();
                 fin.Close();
                 button2.Enabled = false;
+                button3.Enabled = true;
             }
+        }
+
+        // генетический алгоритм
+        private void button3_Click(object sender, EventArgs e)
+        {
+            button3.Enabled = false;
+            createPopulation();
+            for (int h = 0; h < 400; h++)
+            {
+                reproduction();
+                mutation();
+                fight();
+            }
+            MessageBox.Show("Решение найдено.");
+            recordVertex();  
+            button4.Enabled = true;
+        }
+
+        // запуск модулей
+        private void button4_Click(object sender, EventArgs e)
+        {
+            button4.Enabled = false;
+            runTasks();
+            checkCompleteTime();
         }
     }
 }
